@@ -1,14 +1,15 @@
---[[
-    AI Hub UI - Nâng cấp giao diện hiện đại
-    - FPS chính xác hơn
-    - Toggle bằng nút hoặc phím F5
-    - Giao diện tối, bo góc, font Gotham
+--[[ 
+    AI Hub UI - Giao diện hiện đại + Ping/RAM/CPU
+    - Toggle bằng nút hoặc F5
+    - Giao diện bo góc, tối màu, font Gotham
+    - Thêm Ping, RAM, CPU ước lượng
 ]]
 
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local StatsService = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -27,7 +28,7 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 -- Main UI Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "AIHubFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 200)
+MainFrame.Size = UDim2.new(0, 320, 0, 260)
 MainFrame.Position = UDim2.new(0, 15, 0, 60)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.BackgroundTransparency = 0.1
@@ -38,25 +39,16 @@ MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 -- Rounded corners & stroke
-local UICorner = Instance.new("UICorner", MainFrame)
-UICorner.CornerRadius = UDim.new(0, 8)
-
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Color = Color3.fromRGB(80, 80, 80)
 UIStroke.Thickness = 1
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 -- Layout
-local UIListLayout = Instance.new("UIListLayout", MainFrame)
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.Padding = UDim.new(0, 5)
-
-local UIPadding = Instance.new("UIPadding", MainFrame)
-UIPadding.PaddingTop = UDim.new(0, 10)
-UIPadding.PaddingBottom = UDim.new(0, 10)
-UIPadding.PaddingLeft = UDim.new(0, 10)
-UIPadding.PaddingRight = UDim.new(0, 10)
+Instance.new("UIListLayout", MainFrame).Padding = UDim.new(0, 5)
+Instance.new("UIPadding", MainFrame).PaddingTop = UDim.new(0, 10)
+MainFrame.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 -- Title
 local TitleLabel = Instance.new("TextLabel")
@@ -89,8 +81,11 @@ local PlayerNameLabel = createStatLabel("PlayerName")
 local ServerTimeLabel = createStatLabel("ServerTime")
 local FPSLabel = createStatLabel("FPS")
 local ServerCreatedLabel = createStatLabel("ServerCreated")
+local PingLabel = createStatLabel("Ping")
+local RAMLabel = createStatLabel("RAM")
+local CPULabel = createStatLabel("CPU")
 
--- Toggle Button (góc trái trên cùng)
+-- Toggle Button
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleAIHubButton"
 ToggleButton.Size = UDim2.new(0, 36, 0, 36)
@@ -102,11 +97,8 @@ ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 20
 ToggleButton.ZIndex = 10
 ToggleButton.Parent = ScreenGui
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
 
-local ToggleButtonCorner = Instance.new("UICorner", ToggleButton)
-ToggleButtonCorner.CornerRadius = UDim.new(0, 8)
-
--- Hover effect
 ToggleButton.MouseEnter:Connect(function()
     ToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 end)
@@ -114,15 +106,13 @@ ToggleButton.MouseLeave:Connect(function()
     ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 end)
 
--- Toggle logic
 local function toggleUIVisibility()
     MainFrame.Visible = not MainFrame.Visible
     ToggleButton.Text = MainFrame.Visible and "-" or "+"
 end
-
 ToggleButton.MouseButton1Click:Connect(toggleUIVisibility)
 
--- Keyboard toggle (F5)
+-- Keyboard F5 Toggle
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.F5 then
         toggleUIVisibility()
@@ -134,7 +124,7 @@ RunService.RenderStepped:Connect(function()
     fpsCounter += 1
 end)
 
--- Format time
+-- Time format helper
 local function formatTime(seconds)
     local h = math.floor(seconds / 3600)
     local m = math.floor((seconds % 3600) / 60)
@@ -142,19 +132,22 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
--- Stats update every second
+-- Stats update loop
 task.spawn(function()
+    local network = StatsService:FindFirstChild("Network")
+    local memory = StatsService:FindFirstChild("Memory")
+
     while true do
         -- FPS
         currentFPS = fpsCounter
         fpsCounter = 0
 
-        -- Name (censored)
+        -- Player name
         local name = LocalPlayer.Name
         local masked = (#name > 3) and string.rep("*", #name - 3) .. string.sub(name, -3) or name
         PlayerNameLabel.Text = "Player: " .. masked
 
-        -- Server time
+        -- Time
         local now = os.time()
         ServerTimeLabel.Text = "Server Time: " .. os.date("%H:%M:%S", now)
 
@@ -164,6 +157,18 @@ task.spawn(function()
         -- Uptime
         local uptime = now - scriptStartTime
         ServerCreatedLabel.Text = "Server Uptime: " .. formatTime(uptime)
+
+        -- Ping (ms)
+        local pingValue = network and network:FindFirstChild("Ping")
+        PingLabel.Text = pingValue and ("Ping: " .. math.floor(pingValue:GetValue()) .. " ms") or "Ping: N/A"
+
+        -- RAM (MB)
+        local memValue = memory and memory:FindFirstChild("TotalMemory")
+        RAMLabel.Text = memValue and string.format("RAM: %.1f MB", memValue:GetValue() / 1024) or "RAM: N/A"
+
+        -- Estimated CPU load (giả định)
+        local cpuLoad = math.clamp(100 - currentFPS * 2, 5, 100)
+        CPULabel.Text = "Est. CPU Load: " .. cpuLoad .. "%"
 
         task.wait(1)
     end
