@@ -1,0 +1,170 @@
+--[[
+    AI Hub UI - Nâng cấp giao diện hiện đại
+    - FPS chính xác hơn
+    - Toggle bằng nút hoặc phím F5
+    - Giao diện tối, bo góc, font Gotham
+]]
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Variables
+local scriptStartTime = os.time()
+local fpsCounter = 0
+local currentFPS = 0
+
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AIHubUI"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main UI Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "AIHubFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 200)
+MainFrame.Position = UDim2.new(0, 15, 0, 60)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = true
+MainFrame.Parent = ScreenGui
+
+-- Rounded corners & stroke
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 8)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(80, 80, 80)
+UIStroke.Thickness = 1
+UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Layout
+local UIListLayout = Instance.new("UIListLayout", MainFrame)
+UIListLayout.FillDirection = Enum.FillDirection.Vertical
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.Padding = UDim.new(0, 5)
+
+local UIPadding = Instance.new("UIPadding", MainFrame)
+UIPadding.PaddingTop = UDim.new(0, 10)
+UIPadding.PaddingBottom = UDim.new(0, 10)
+UIPadding.PaddingLeft = UDim.new(0, 10)
+UIPadding.PaddingRight = UDim.new(0, 10)
+
+-- Title
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "Title"
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Text = "AI Hub"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 22
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Parent = MainFrame
+
+-- Helper: Create stat label
+local function createStatLabel(name)
+    local label = Instance.new("TextLabel")
+    label.Name = name
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 15
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.BackgroundTransparency = 1
+    label.Parent = MainFrame
+    return label
+end
+
+-- Stat Labels
+local PlayerNameLabel = createStatLabel("PlayerName")
+local ServerTimeLabel = createStatLabel("ServerTime")
+local FPSLabel = createStatLabel("FPS")
+local ServerCreatedLabel = createStatLabel("ServerCreated")
+
+-- Toggle Button (góc trái trên cùng)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleAIHubButton"
+ToggleButton.Size = UDim2.new(0, 36, 0, 36)
+ToggleButton.Position = UDim2.new(0, 15, 0, 15)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleButton.Text = "-"
+ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 20
+ToggleButton.ZIndex = 10
+ToggleButton.Parent = ScreenGui
+
+local ToggleButtonCorner = Instance.new("UICorner", ToggleButton)
+ToggleButtonCorner.CornerRadius = UDim.new(0, 8)
+
+-- Hover effect
+ToggleButton.MouseEnter:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+end)
+ToggleButton.MouseLeave:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+end)
+
+-- Toggle logic
+local function toggleUIVisibility()
+    MainFrame.Visible = not MainFrame.Visible
+    ToggleButton.Text = MainFrame.Visible and "-" or "+"
+end
+
+ToggleButton.MouseButton1Click:Connect(toggleUIVisibility)
+
+-- Keyboard toggle (F5)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F5 then
+        toggleUIVisibility()
+    end
+end)
+
+-- FPS tracking
+RunService.RenderStepped:Connect(function()
+    fpsCounter += 1
+end)
+
+-- Format time
+local function formatTime(seconds)
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = seconds % 60
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+-- Stats update every second
+task.spawn(function()
+    while true do
+        -- FPS
+        currentFPS = fpsCounter
+        fpsCounter = 0
+
+        -- Name (censored)
+        local name = LocalPlayer.Name
+        local masked = (#name > 3) and string.rep("*", #name - 3) .. string.sub(name, -3) or name
+        PlayerNameLabel.Text = "Player: " .. masked
+
+        -- Server time
+        local now = os.time()
+        ServerTimeLabel.Text = "Server Time: " .. os.date("%H:%M:%S", now)
+
+        -- FPS
+        FPSLabel.Text = "FPS: " .. tostring(currentFPS)
+
+        -- Uptime
+        local uptime = now - scriptStartTime
+        ServerCreatedLabel.Text = "Server Uptime: " .. formatTime(uptime)
+
+        task.wait(1)
+    end
+end)
